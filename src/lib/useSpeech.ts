@@ -135,14 +135,21 @@ export function useGroqRecorder(language: string) {
         recorder.onstop = async () => {
           streamRef.current?.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
-          const blob = new Blob(chunksRef.current, {
-            type: recorder.mimeType || "audio/webm",
-          });
-          if (blob.size === 0) return;
+          const mime = recorder.mimeType || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: mime });
+          if (blob.size === 0) {
+            setError("Không ghi được âm thanh. Hãy thử lại và nói to hơn.");
+            return;
+          }
+          const ext = mime.includes("ogg")
+            ? "ogg"
+            : mime.includes("mp4") || mime.includes("mpeg")
+            ? "mp4"
+            : "webm";
           setTranscribing(true);
           try {
             const fd = new FormData();
-            fd.append("audio", blob, "audio.webm");
+            fd.append("audio", blob, `audio.${ext}`);
             fd.append("language", language === "en" ? "en" : "vi");
             const res = await fetch("/api/transcribe", {
               method: "POST",
@@ -153,7 +160,11 @@ export function useGroqRecorder(language: string) {
               setError(data.error ?? "Không nhận diện được giọng nói.");
               return;
             }
-            if (data.text) onTextRef.current?.(data.text);
+            if (data.text) {
+              onTextRef.current?.(data.text);
+            } else {
+              setError("Không nghe rõ. Hãy nói gần micro và to hơn rồi thử lại.");
+            }
           } catch {
             setError("Không thể kết nối máy chủ nhận diện giọng nói.");
           } finally {
@@ -187,6 +198,10 @@ export function useSpeechSynthesis(language: string) {
   const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
+    // Pre-load the voice list (some browsers populate it asynchronously).
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
     return () => {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -198,14 +213,48 @@ export function useSpeechSynthesis(language: string) {
     (text: string) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window))
         return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = localeFor(language);
-      utterance.rate = 1;
-      utterance.onstart = () => setSpeaking(true);
-      utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
-      window.speechSynthesis.speak(utterance);
+      const synth = window.speechSynthesis;
+      synth.cancel();
+
+      const locale = localeFor(language);
+      const prefix = language === "en" ? "en" : "vi";
+      const voices = synth.getVoices();
+      const voice =
+        voices.find((v) => v.lang === locale) ??
+        voices.find((v) => v.lang.toLowerCase().startsWith(prefix)) ??
+        null;
+
+      // Chrome cuts off / stutters on long utterances. Speak sentence by
+      // sentence so each utterance stays short and plays smoothly.
+      const chunks = (text.match(/[^.!?…。\n]+[.!?…。]*/g) ?? [text])
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (chunks.length === 0) return;
+
+      let i = 0;
+      const speakNext = () => {
+        if (i >= chunks.length) {
+          setSpeaking(false);
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(chunks[i]);
+        utterance.lang = locale;
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.onend = () => {
+          i += 1;
+          speakNext();
+        };
+        utterance.onerror = () => {
+          i += 1;
+          speakNext();
+        };
+        synth.speak(utterance);
+      };
+
+      setSpeaking(true);
+      speakNext();
     },
     [language]
   );
