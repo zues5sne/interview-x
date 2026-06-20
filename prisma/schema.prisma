@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String            @id @default(cuid())
+  email        String            @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  sessions     InterviewSession[]
+}
+
+model InterviewSession {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  topic     String
+  level     String
+  language  String    @default("vi")
+  status    String    @default("active") // active | finished
+  score     Int?
+  feedback  String?
+  createdAt DateTime  @default(now())
+  finishedAt DateTime?
+  messages  Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id        String           @id @default(cuid())
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  role      String // assistant | user
+  content   String
+  createdAt DateTime         @default(now())
+
+  @@index([sessionId])
+}
