@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Markdown from "@/components/Markdown";
+import CameraPanel from "@/components/CameraPanel";
 import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/useSpeech";
 
 type ChatMessage = {
@@ -182,6 +183,9 @@ export default function InterviewRoom(props: Props) {
           </div>
         </div>
       </div>
+
+      {/* Camera (real-interview feel) */}
+      {isActive && <CameraPanel />}
 
       {/* Chat */}
       <div className="flex-1 space-y-4">
