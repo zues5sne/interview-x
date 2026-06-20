@@ -38,9 +38,12 @@ export async function POST(request: Request) {
       language,
     });
     return NextResponse.json({ text: result.text.trim() });
-  } catch {
+  } catch (err) {
+    const detail =
+      err instanceof Error ? err.message : "unknown transcription error";
+    console.error("[transcribe] Groq Whisper failed:", detail);
     return NextResponse.json(
-      { error: "Không thể chuyển giọng nói thành văn bản." },
+      { error: `Không thể chuyển giọng nói thành văn bản: ${detail}` },
       { status: 502 }
     );
   }
