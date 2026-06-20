@@ -62,6 +62,24 @@ export function getAIClient(): AIClient | null {
   return cached;
 }
 
+let cachedGroq: OpenAI | null = null;
+
+export function hasGroqKey(): boolean {
+  return !!process.env.GROQ_API_KEY;
+}
+
+// Groq client used specifically for free Whisper transcription, independent of
+// the chosen chat provider.
+export function getGroqClient(): OpenAI | null {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+  cachedGroq =
+    cachedGroq ?? new OpenAI({ apiKey, baseURL: PROVIDERS.groq.baseURL });
+  return cachedGroq;
+}
+
+export const GROQ_TRANSCRIBE_MODEL = "whisper-large-v3-turbo";
+
 const PROVIDER_LABELS: Record<AIProvider, string> = {
   groq: "Groq",
   gemini: "Gemini",

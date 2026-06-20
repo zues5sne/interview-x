@@ -93,6 +93,93 @@ export function useSpeechRecognition(language: string) {
   return { supported, listening, start, stop };
 }
 
+export function useGroqRecorder(language: string) {
+  const supported = useClientFlag(
+    () =>
+      typeof window !== "undefined" &&
+      typeof navigator !== "undefined" &&
+      !!navigator.mediaDevices?.getUserMedia &&
+      typeof window.MediaRecorder !== "undefined"
+  );
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const onTextRef = useRef<((text: string) => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.stop();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  const start = useCallback(
+    async (existing: string, onText: (text: string) => void) => {
+      setError(null);
+      onTextRef.current = (text: string) => {
+        const base = existing ? existing.trim() + " " : "";
+        onText(base + text);
+      };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        chunksRef.current = [];
+        const recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        recorder.onstop = async () => {
+          streamRef.current?.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+          const blob = new Blob(chunksRef.current, {
+            type: recorder.mimeType || "audio/webm",
+          });
+          if (blob.size === 0) return;
+          setTranscribing(true);
+          try {
+            const fd = new FormData();
+            fd.append("audio", blob, "audio.webm");
+            fd.append("language", language === "en" ? "en" : "vi");
+            const res = await fetch("/api/transcribe", {
+              method: "POST",
+              body: fd,
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              setError(data.error ?? "Không nhận diện được giọng nói.");
+              return;
+            }
+            if (data.text) onTextRef.current?.(data.text);
+          } catch {
+            setError("Không thể kết nối máy chủ nhận diện giọng nói.");
+          } finally {
+            setTranscribing(false);
+          }
+        };
+        recorder.start();
+        recorderRef.current = recorder;
+        setRecording(true);
+      } catch {
+        setError("Không truy cập được micro. Hãy bấm Allow khi trình duyệt hỏi.");
+      }
+    },
+    [language]
+  );
+
+  const stop = useCallback(() => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+    }
+    setRecording(false);
+  }, []);
+
+  return { supported, recording, transcribing, error, start, stop };
+}
+
 export function useSpeechSynthesis(language: string) {
   const supported = useClientFlag(
     () => typeof window !== "undefined" && "speechSynthesis" in window

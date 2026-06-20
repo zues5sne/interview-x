@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Markdown from "@/components/Markdown";
 import CameraPanel from "@/components/CameraPanel";
-import { useSpeechRecognition, useSpeechSynthesis } from "@/lib/useSpeech";
+import {
+  useSpeechRecognition,
+  useSpeechSynthesis,
+  useGroqRecorder,
+} from "@/lib/useSpeech";
 
 type ChatMessage = {
   id: string;
@@ -21,6 +25,7 @@ type Props = {
   language: string;
   maxQuestions: number;
   aiLabel: string | null;
+  sttMode: "groq" | "web";
   initialStatus: string;
   initialScore: number | null;
   initialFeedback: string | null;
@@ -39,7 +44,26 @@ export default function InterviewRoom(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(true);
 
-  const recognition = useSpeechRecognition(props.language);
+  const webStt = useSpeechRecognition(props.language);
+  const groqStt = useGroqRecorder(props.language);
+  const useGroq = props.sttMode === "groq" && groqStt.supported;
+  const voice = useGroq
+    ? {
+        supported: groqStt.supported,
+        active: groqStt.recording,
+        busy: groqStt.transcribing,
+        error: groqStt.error,
+        start: groqStt.start,
+        stop: groqStt.stop,
+      }
+    : {
+        supported: webStt.supported,
+        active: webStt.listening,
+        busy: false,
+        error: null as string | null,
+        start: webStt.start,
+        stop: webStt.stop,
+      };
   const synthesis = useSpeechSynthesis(props.language);
 
   const spokenRef = useRef<Set<string>>(new Set());
@@ -81,11 +105,11 @@ export default function InterviewRoom(props: Props) {
 
   function toggleMic() {
     markStarted();
-    if (recognition.listening) {
-      recognition.stop();
+    if (voice.active) {
+      voice.stop();
     } else {
       synthesis.cancel();
-      recognition.start(input, setInput);
+      voice.start(input, setInput);
     }
   }
 
@@ -93,7 +117,7 @@ export default function InterviewRoom(props: Props) {
     const answer = input.trim();
     if (!answer || submitting) return;
     markStarted();
-    recognition.stop();
+    voice.stop();
     synthesis.cancel();
     setSubmitting(true);
     setError(null);
@@ -142,7 +166,7 @@ export default function InterviewRoom(props: Props) {
 
   async function finishInterview() {
     if (finishing) return;
-    recognition.stop();
+    voice.stop();
     synthesis.cancel();
     setFinishing(true);
     setError(null);
@@ -285,18 +309,18 @@ export default function InterviewRoom(props: Props) {
       {isActive && (
         <div className="sticky bottom-0 mt-4 rounded-2xl border border-slate-800 bg-slate-950/90 p-3 backdrop-blur">
           <div className="flex items-end gap-2">
-            {recognition.supported && (
+            {voice.supported && (
               <button
                 onClick={toggleMic}
-                disabled={submitting || finishing}
-                title={recognition.listening ? "Dừng ghi âm" : "Trả lời bằng giọng nói"}
+                disabled={submitting || finishing || voice.busy}
+                title={voice.active ? "Dừng ghi âm" : "Trả lời bằng giọng nói"}
                 className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg disabled:opacity-50 ${
-                  recognition.listening
+                  voice.active
                     ? "animate-pulse-ring bg-red-500 text-white"
                     : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                 }`}
               >
-                🎤
+                {voice.busy ? "…" : "🎤"}
               </button>
             )}
             <textarea
@@ -310,8 +334,10 @@ export default function InterviewRoom(props: Props) {
               }}
               rows={1}
               placeholder={
-                recognition.listening
-                  ? "Đang nghe... hãy nói câu trả lời của bạn"
+                voice.busy
+                  ? "Đang chuyển giọng nói thành văn bản..."
+                  : voice.active
+                  ? "Đang ghi âm... bấm 🎤 lần nữa khi nói xong"
                   : "Nhập câu trả lời, hoặc bấm 🎤 để nói..."
               }
               className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
@@ -349,7 +375,10 @@ export default function InterviewRoom(props: Props) {
               Kết thúc &amp; chấm điểm
             </button>
           </div>
-          {!recognition.supported && (
+          {voice.error && (
+            <p className="mt-2 px-1 text-xs text-amber-400/80">{voice.error}</p>
+          )}
+          {!voice.supported && (
             <p className="mt-2 px-1 text-xs text-amber-400/80">
               Mẹo: dùng Chrome để trả lời bằng giọng nói. Hiện bạn vẫn có thể gõ
               câu trả lời.

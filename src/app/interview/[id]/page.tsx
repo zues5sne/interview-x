@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { topicById, levelLabel } from "@/lib/catalog";
-import { getActiveProvider } from "@/lib/openai";
+import { getActiveProvider, hasGroqKey } from "@/lib/openai";
 import AppHeader from "@/components/AppHeader";
 import InterviewRoom from "@/components/InterviewRoom";
 
@@ -37,6 +37,7 @@ export default async function InterviewPage({
         language={session.language}
         maxQuestions={session.questionCount}
         aiLabel={ai ? `${ai.label} · ${ai.model}` : null}
+        sttMode={hasGroqKey() ? "groq" : "web"}
         initialStatus={session.status}
         initialScore={session.score}
         initialFeedback={session.feedback}
