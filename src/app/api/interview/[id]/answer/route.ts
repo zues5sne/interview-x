@@ -67,7 +67,8 @@ export async function POST(
     session.topic,
     session.level,
     session.language,
-    history
+    history,
+    session.jd
   );
 
   const assistantMessage = await prisma.message.create({

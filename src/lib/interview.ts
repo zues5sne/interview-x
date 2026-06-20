@@ -8,7 +8,12 @@ function languageName(lang: string): string {
   return lang === "en" ? "English" : "Vietnamese";
 }
 
-function buildSystemPrompt(topic: string, level: string, language: string): string {
+function buildSystemPrompt(
+  topic: string,
+  level: string,
+  language: string,
+  jd?: string | null
+): string {
   const t = topicById(topic);
   const topicLabel = t ? `${t.label} (${t.description})` : topic;
   return [
@@ -20,9 +25,15 @@ function buildSystemPrompt(topic: string, level: string, language: string): stri
     `Ask ONE question at a time. Keep each question concise (1-3 sentences).`,
     `Start easier and progressively go deeper based on the candidate's answers.`,
     `Ask realistic, practical questions a real tester would face. Mix concept, scenario, and behavioral questions.`,
+    `Be in-depth and probing: when an answer is vague or shallow, drill deeper — ask for concrete examples, specific tools, trade-offs, metrics, or how they handled a real situation.`,
+    jd && jd.trim()
+      ? `The candidate is targeting this specific Job Description (JD). Tailor EVERY question to the skills, tools, technologies and responsibilities mentioned in this JD, and probe how well the candidate matches it. JD:\n"""\n${jd.trim()}\n"""`
+      : "",
     `Do NOT provide the answer or feedback during the interview — only ask the next question.`,
     `Do not number the questions. Do not add any preamble like "Question:". Just output the question text.`,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 type HistoryMessage = { role: "assistant" | "user"; content: string };
@@ -31,7 +42,8 @@ export async function generateNextQuestion(
   topic: string,
   level: string,
   language: string,
-  history: HistoryMessage[]
+  history: HistoryMessage[],
+  jd?: string | null
 ): Promise<string> {
   const ai = getAIClient();
   if (!ai) {
@@ -39,7 +51,7 @@ export async function generateNextQuestion(
   }
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt(topic, level, language) },
+    { role: "system", content: buildSystemPrompt(topic, level, language, jd) },
     ...history.map((m) => ({ role: m.role, content: m.content })),
   ];
   if (history.length === 0) {
@@ -71,7 +83,8 @@ export async function generateEvaluation(
   topic: string,
   level: string,
   language: string,
-  history: HistoryMessage[]
+  history: HistoryMessage[],
+  jd?: string | null
 ): Promise<Evaluation> {
   const ai = getAIClient();
   if (!ai) {
@@ -91,8 +104,11 @@ export async function generateEvaluation(
       {
         role: "system",
         content:
-          buildSystemPrompt(topic, level, language) +
+          buildSystemPrompt(topic, level, language, jd) +
           ` The interview is over. Evaluate the candidate based on the transcript.` +
+          (jd && jd.trim()
+            ? ` Also assess how well the candidate fits the provided Job Description.`
+            : "") +
           ` Respond ONLY with a JSON object: {"score": <integer 0-100>, "feedback": "<detailed feedback in ${languageName(
             language
           )}>"}.` +

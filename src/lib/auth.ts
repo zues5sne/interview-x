@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "ix_session";
-const SESSION_DAYS = 7;
+const SESSION_DAYS = 30;
 
 function getSecret(): Uint8Array {
   const secret =

@@ -13,11 +13,13 @@ export async function POST(request: Request) {
     topic?: string;
     level?: string;
     language?: string;
+    jd?: string;
   } | null;
 
   const topic = body?.topic ?? "";
   const level = body?.level ?? "junior";
   const language = body?.language ?? "vi";
+  const jd = body?.jd?.trim().slice(0, 5000) || null;
 
   if (!topicById(topic)) {
     return NextResponse.json({ error: "Chủ đề không hợp lệ." }, { status: 400 });
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ngôn ngữ không hợp lệ." }, { status: 400 });
   }
 
-  const firstQuestion = await generateNextQuestion(topic, level, language, []);
+  const firstQuestion = await generateNextQuestion(topic, level, language, [], jd);
 
   const session = await prisma.interviewSession.create({
     data: {
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
       topic,
       level,
       language,
+      jd,
       status: "active",
       messages: {
         create: { role: "assistant", content: firstQuestion },

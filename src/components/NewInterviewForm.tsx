@@ -9,6 +9,7 @@ export default function NewInterviewForm() {
   const [topic, setTopic] = useState(TOPICS[0].id);
   const [level, setLevel] = useState<string>(LEVELS[0].id);
   const [language, setLanguage] = useState<string>(LANGUAGES[0].id);
+  const [jd, setJd] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,7 @@ export default function NewInterviewForm() {
       const res = await fetch("/api/interview/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, level, language }),
+        body: JSON.stringify({ topic, level, language, jd }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -101,6 +102,19 @@ export default function NewInterviewForm() {
           </select>
         </label>
       </div>
+
+      <label className="mt-5 block">
+        <span className="mb-2 block text-sm font-medium text-slate-300">
+          Mô tả công việc / JD <span className="text-slate-500">(tùy chọn)</span>
+        </span>
+        <textarea
+          value={jd}
+          onChange={(e) => setJd(e.target.value)}
+          rows={4}
+          placeholder="Dán JD vào đây để AI hỏi sâu và bám sát yêu cầu công việc (kỹ năng, công cụ, kinh nghiệm...). Để trống thì AI hỏi theo chủ đề đã chọn."
+          className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+        />
+      </label>
 
       {error && (
         <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">

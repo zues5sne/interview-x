@@ -20,6 +20,7 @@ type Props = {
   levelLabel: string;
   language: string;
   maxQuestions: number;
+  aiLabel: string | null;
   initialStatus: string;
   initialScore: number | null;
   initialFeedback: string | null;
@@ -174,6 +175,17 @@ export default function InterviewRoom(props: Props) {
           <div>
             <div className="font-semibold">{props.topicLabel}</div>
             <div className="text-xs text-slate-400">{props.levelLabel}</div>
+            {props.aiLabel ? (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                AI: {props.aiLabel}
+              </div>
+            ) : (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                AI: câu hỏi mẫu (chưa có key)
+              </div>
+            )}
           </div>
         </div>
         <div className="text-right">

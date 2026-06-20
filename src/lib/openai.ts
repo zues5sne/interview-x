@@ -61,3 +61,21 @@ export function getAIClient(): AIClient | null {
   };
   return cached;
 }
+
+const PROVIDER_LABELS: Record<AIProvider, string> = {
+  groq: "Groq",
+  gemini: "Gemini",
+  openai: "OpenAI",
+};
+
+export type ActiveProvider = {
+  provider: AIProvider;
+  label: string;
+  model: string;
+};
+
+export function getActiveProvider(): ActiveProvider | null {
+  const ai = getAIClient();
+  if (!ai) return null;
+  return { provider: ai.provider, label: PROVIDER_LABELS[ai.provider], model: ai.model };
+}
