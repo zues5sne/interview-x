@@ -1,5 +1,5 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { getOpenAI, OPENAI_MODEL } from "@/lib/openai";
+import { getAIClient } from "@/lib/openai";
 import { topicById } from "@/lib/catalog";
 
 export { TOPICS, LEVELS, LANGUAGES, MAX_QUESTIONS, topicById } from "@/lib/catalog";
@@ -33,8 +33,8 @@ export async function generateNextQuestion(
   language: string,
   history: HistoryMessage[]
 ): Promise<string> {
-  const openai = getOpenAI();
-  if (!openai) {
+  const ai = getAIClient();
+  if (!ai) {
     return mockNextQuestion(topic, language, history);
   }
 
@@ -50,8 +50,8 @@ export async function generateNextQuestion(
     });
   }
 
-  const res = await openai.chat.completions.create({
-    model: OPENAI_MODEL,
+  const res = await ai.client.chat.completions.create({
+    model: ai.model,
     messages,
     temperature: 0.8,
     max_tokens: 300,
@@ -73,8 +73,8 @@ export async function generateEvaluation(
   language: string,
   history: HistoryMessage[]
 ): Promise<Evaluation> {
-  const openai = getOpenAI();
-  if (!openai) {
+  const ai = getAIClient();
+  if (!ai) {
     return mockEvaluation(language);
   }
 
@@ -82,8 +82,8 @@ export async function generateEvaluation(
     .map((m) => `${m.role === "assistant" ? "INTERVIEWER" : "CANDIDATE"}: ${m.content}`)
     .join("\n");
 
-  const res = await openai.chat.completions.create({
-    model: OPENAI_MODEL,
+  const res = await ai.client.chat.completions.create({
+    model: ai.model,
     response_format: { type: "json_object" },
     temperature: 0.3,
     max_tokens: 700,
