@@ -2,7 +2,14 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { getAIClient } from "@/lib/openai";
 import { topicById } from "@/lib/catalog";
 
-export { TOPICS, LEVELS, LANGUAGES, MAX_QUESTIONS, topicById } from "@/lib/catalog";
+export {
+  TOPICS,
+  LEVELS,
+  LANGUAGES,
+  MAX_QUESTIONS,
+  clampQuestionCount,
+  topicById,
+} from "@/lib/catalog";
 
 function languageName(lang: string): string {
   return lang === "en" ? "English" : "Vietnamese";
@@ -12,25 +19,26 @@ function buildSystemPrompt(
   topic: string,
   level: string,
   language: string,
-  jd?: string | null
+  jd?: string | null,
+  questionCount?: number
 ): string {
   const t = topicById(topic);
   const topicLabel = t ? `${t.label} (${t.description})` : topic;
+  const total = questionCount ?? 6;
   return [
-    `You are "Interview X", a senior QA / software tester interviewer.`,
-    `You are conducting a job interview for a Software Tester / QA Engineer position.`,
-    `Topic focus: ${topicLabel}.`,
-    `Candidate level: ${level}.`,
-    `Conduct the entire interview in ${languageName(language)}.`,
-    `Ask ONE question at a time. Keep each question concise (1-3 sentences).`,
-    `Start easier and progressively go deeper based on the candidate's answers.`,
-    `Ask realistic, practical questions a real tester would face. Mix concept, scenario, and behavioral questions.`,
-    `Be in-depth and probing: when an answer is vague or shallow, drill deeper — ask for concrete examples, specific tools, trade-offs, metrics, or how they handled a real situation.`,
+    `You are "Interview X", an experienced hiring manager and senior QA lead with 10+ years interviewing Software Testers / QA Engineers.`,
+    `You are conducting a real job interview for a Software Tester / QA Engineer position. Be professional, warm but rigorous, like a real interviewer at a serious tech company.`,
+    `Primary topic: ${topicLabel}. Candidate level: ${level}. Conduct the entire interview in ${languageName(language)}.`,
+    `This interview has about ${total} questions total. Plan the interview as a professional would: run a coherent arc that covers the key competencies for this role and level — not just whatever the candidate said last.`,
+    `Suggested arc: (1) a brief warm-up / background question, (2) core fundamentals of the topic, (3) practical hands-on scenarios and problem-solving, (4) deeper/advanced topics and trade-offs appropriate to a ${level}, (5) one or two behavioral/teamwork questions. Adapt the proportions to the level.`,
+    `Use the candidate's previous answers to decide depth: ask a sharp follow-up when an answer is strong, incomplete, or vague (probe for concrete examples, specific tools, trade-offs, metrics, real situations). But do NOT merely react to their last sentence — make sure that across the whole interview you cover a broad, professional range of important skills for this role.`,
+    `Calibrate difficulty to the level: gentle and foundational for Junior; practical depth for Middle; architecture, strategy, leadership and trade-offs for Senior.`,
+    `Ask ONE question at a time, concise (1-3 sentences), realistic and practical — the kind a real interviewer asks.`,
     jd && jd.trim()
-      ? `The candidate is targeting this specific Job Description (JD). Tailor EVERY question to the skills, tools, technologies and responsibilities mentioned in this JD, and probe how well the candidate matches it. JD:\n"""\n${jd.trim()}\n"""`
+      ? `The candidate is targeting this specific Job Description (JD). Prioritize the skills, tools, technologies and responsibilities in this JD and probe how well the candidate matches it. JD:\n"""\n${jd.trim()}\n"""`
       : "",
     `Do NOT provide the answer or feedback during the interview — only ask the next question.`,
-    `Do not number the questions. Do not add any preamble like "Question:". Just output the question text.`,
+    `Do not number the questions. Do not add any preamble like "Question:". Output only the question text.`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -43,7 +51,8 @@ export async function generateNextQuestion(
   level: string,
   language: string,
   history: HistoryMessage[],
-  jd?: string | null
+  jd?: string | null,
+  questionCount?: number
 ): Promise<string> {
   const ai = getAIClient();
   if (!ai) {
@@ -51,7 +60,7 @@ export async function generateNextQuestion(
   }
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt(topic, level, language, jd) },
+    { role: "system", content: buildSystemPrompt(topic, level, language, jd, questionCount) },
     ...history.map((m) => ({ role: m.role, content: m.content })),
   ];
   if (history.length === 0) {
@@ -84,7 +93,8 @@ export async function generateEvaluation(
   level: string,
   language: string,
   history: HistoryMessage[],
-  jd?: string | null
+  jd?: string | null,
+  questionCount?: number
 ): Promise<Evaluation> {
   const ai = getAIClient();
   if (!ai) {
@@ -104,7 +114,7 @@ export async function generateEvaluation(
       {
         role: "system",
         content:
-          buildSystemPrompt(topic, level, language, jd) +
+          buildSystemPrompt(topic, level, language, jd, questionCount) +
           ` The interview is over. Evaluate the candidate based on the transcript.` +
           (jd && jd.trim()
             ? ` Also assess how well the candidate fits the provided Job Description.`

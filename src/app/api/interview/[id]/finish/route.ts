@@ -51,7 +51,8 @@ export async function POST(
     session.level,
     session.language,
     history,
-    session.jd
+    session.jd,
+    session.questionCount
   );
 
   const updated = await prisma.interviewSession.update({

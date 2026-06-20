@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth";
-import { generateNextQuestion, MAX_QUESTIONS } from "@/lib/interview";
+import { generateNextQuestion } from "@/lib/interview";
 
 export async function POST(
   request: NextRequest,
@@ -57,7 +57,8 @@ export async function POST(
   ];
 
   const askedCount = history.filter((m) => m.role === "assistant").length;
-  const done = askedCount >= MAX_QUESTIONS;
+  const total = session.questionCount;
+  const done = askedCount >= total;
 
   if (done) {
     return NextResponse.json({ userMessage, done: true });
@@ -68,7 +69,8 @@ export async function POST(
     session.level,
     session.language,
     history,
-    session.jd
+    session.jd,
+    total
   );
 
   const assistantMessage = await prisma.message.create({
@@ -80,6 +82,6 @@ export async function POST(
     assistantMessage,
     done: false,
     questionNumber: askedCount + 1,
-    maxQuestions: MAX_QUESTIONS,
+    maxQuestions: total,
   });
 }

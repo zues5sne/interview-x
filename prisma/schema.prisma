@@ -24,6 +24,7 @@ model InterviewSession {
   level     String
   language  String    @default("vi")
   jd        String?
+  questionCount Int    @default(6)
   status    String    @default("active") // active | finished
   score     Int?
   feedback  String?

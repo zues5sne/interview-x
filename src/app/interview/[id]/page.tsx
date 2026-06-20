@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { topicById, levelLabel, MAX_QUESTIONS } from "@/lib/catalog";
+import { topicById, levelLabel } from "@/lib/catalog";
 import { getActiveProvider } from "@/lib/openai";
 import AppHeader from "@/components/AppHeader";
 import InterviewRoom from "@/components/InterviewRoom";
@@ -35,7 +35,7 @@ export default async function InterviewPage({
         topicEmoji={topic?.emoji ?? "💬"}
         levelLabel={levelLabel(session.level)}
         language={session.language}
-        maxQuestions={MAX_QUESTIONS}
+        maxQuestions={session.questionCount}
         aiLabel={ai ? `${ai.label} · ${ai.model}` : null}
         initialStatus={session.status}
         initialScore={session.score}

@@ -57,6 +57,16 @@ export const LANGUAGES = [
 
 export const MAX_QUESTIONS = 6;
 
+export const QUESTION_COUNT_OPTIONS = [5, 8, 10, 15] as const;
+export const MIN_QUESTIONS = 3;
+export const MAX_QUESTIONS_LIMIT = 20;
+export const DEFAULT_QUESTION_COUNT = 8;
+
+export function clampQuestionCount(n: unknown): number {
+  const v = typeof n === "number" && Number.isFinite(n) ? Math.round(n) : DEFAULT_QUESTION_COUNT;
+  return Math.max(MIN_QUESTIONS, Math.min(MAX_QUESTIONS_LIMIT, v));
+}
+
 export function topicById(id: string): Topic | undefined {
   return TOPICS.find((t) => t.id === id);
 }
