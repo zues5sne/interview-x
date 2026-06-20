@@ -66,7 +66,7 @@ export async function generateNextQuestion(
     model: ai.model,
     messages,
     temperature: 0.8,
-    max_tokens: 300,
+    max_completion_tokens: 1200,
   });
   return (
     res.choices[0]?.message?.content?.trim() ||
@@ -99,7 +99,7 @@ export async function generateEvaluation(
     model: ai.model,
     response_format: { type: "json_object" },
     temperature: 0.3,
-    max_tokens: 700,
+    max_completion_tokens: 2500,
     messages: [
       {
         role: "system",
